@@ -482,7 +482,7 @@ where
         T: 'static,
     {
         if input_map.wants_clear {
-            input.update();
+            input.clear();
             let mut v = vec![];
             for i in input.get_pressed().cloned() {
                 v.push(i);
