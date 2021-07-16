@@ -11,7 +11,8 @@ use bevy::{
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Binding {
-    keys: HashSet<KeyCode>,
+    pub keys: HashSet<KeyCode>,
+    pub mouse_buttons: HashSet<MouseButton>,
     gamepad_buttons: HashSet<GamepadButtonType>,
     gamepad_axis_directions: HashSet<GamepadAxisDirection>,
     deadzone: f32,
@@ -36,6 +37,17 @@ impl From<Vec<KeyCode>> for Binding {
         }
         Self {
             keys: set,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<MouseButton> for Binding {
+    fn from(mouse_button: MouseButton) -> Self {
+        let mut set = HashSet::new();
+        set.insert(mouse_button);
+        Self {
+            mouse_buttons: set,
             ..Default::default()
         }
     }
@@ -104,6 +116,18 @@ impl Binding {
         }
     }
 
+    fn mouse_button_pressed(&self, input: &Res<Input<MouseButton>>) -> bool {
+        if self.mouse_buttons.is_empty() {
+            false
+        } else {
+            self.mouse_buttons
+                .iter()
+                .map(|it| input.pressed(*it))
+                .fold(true, |it, acc| acc && it)
+        }
+    }
+
+
     fn button_pressed(&self, buttons: &HashMap<GamepadButtonType, f32>) -> bool {
         if self.gamepad_buttons.is_empty() {
             false
@@ -135,7 +159,7 @@ impl Binding {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Action {
-    bindings: Vec<Binding>,
+    pub bindings: Vec<Binding>,
 }
 
 impl Action {
@@ -149,6 +173,18 @@ impl Action {
         bindings.sort_by(|v1, v2| (v1.weight().partial_cmp(&v2.weight()).unwrap()));
         bindings.last().cloned()
     }
+
+    fn mouse_button_pressed(&self, input: &Res<Input<MouseButton>>) -> Option<Binding> {
+        let mut bindings = self
+            .bindings
+            .iter()
+            .filter(|it| it.mouse_button_pressed(&input))
+            .cloned()
+            .collect::<Vec<Binding>>();
+        bindings.sort_by(|v1, v2| (v1.weight().partial_cmp(&v2.weight()).unwrap()));
+        bindings.last().cloned()
+    }
+
 
     fn button_pressed(&self, buttons: &HashMap<GamepadButtonType, f32>) -> Option<(Binding, f32)> {
         let mut bindings = self
@@ -201,7 +237,8 @@ impl Action {
 }
 
 pub struct InputMap<T> {
-    actions: HashMap<T, Action>,
+    pub actions: HashMap<T, Action>,
+
     pressed_buttons: HashMap<GamepadButtonType, f32>,
     gamepad_axis: HashMap<GamepadAxisDirection, f32>,
     raw_active: Vec<(T, Binding, f32)>,
@@ -236,6 +273,12 @@ where
         self.actions.insert(key, Default::default());
         self
     }
+
+    pub fn remove_action(&mut self, key: T) -> &mut Self {
+        self.actions.remove(&key);
+        self
+    }
+
 
     pub fn bind<K: Into<T>, B: Into<Binding>>(&mut self, action: K, binding: B) -> &mut Self {
         let key = action.into();
@@ -287,6 +330,7 @@ where
     }
 
     pub fn clear(&mut self) {
+        self.actions.clear();
         self.wants_clear = true;
         self.pressed_buttons.clear();
         self.gamepad_axis.clear();
@@ -304,6 +348,20 @@ where
             .actions
             .iter()
             .map(|a| (a.0, a.1.key_pressed(&input)))
+            .filter(|v| v.1.is_some())
+            .map(|v| (v.0.clone(), v.1.unwrap(), 1.))
+            .collect::<Vec<(T, Binding, f32)>>();
+        input_map.raw_active.append(&mut raw_active);
+    }
+
+    fn mouse_button_input(input: Res<Input<MouseButton>>, mut input_map: ResMut<InputMap<T>>)
+    where
+        T: 'static,
+    {
+        let mut raw_active = input_map
+            .actions
+            .iter()
+            .map(|a| (a.0, a.1.mouse_button_pressed(&input)))
             .filter(|v| v.1.is_some())
             .map(|v| (v.0.clone(), v.1.unwrap(), 1.))
             .collect::<Vec<(T, Binding, f32)>>();
@@ -513,6 +571,7 @@ where
     fn build(&self, app: &mut AppBuilder) {
         app.init_resource::<InputMap<T>>()
             .add_system_to_stage(CoreStage::PreUpdate, InputMap::<T>::key_input.system())
+            .add_system_to_stage(CoreStage::PreUpdate, InputMap::<T>::mouse_button_input.system())
             .add_system_to_stage(CoreStage::PreUpdate, InputMap::<T>::gamepad_state.system())
             .add_system_to_stage(
                 CoreStage::PreUpdate,
