@@ -15,7 +15,6 @@ pub struct Binding {
     gamepad_buttons: HashSet<GamepadButtonType>,
     gamepad_axis_directions: HashSet<GamepadAxisDirection>,
     deadzone: f32,
-    text: &'static str,
 }
 
 impl From<KeyCode> for Binding {
@@ -136,7 +135,7 @@ impl Binding {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Action {
-    pub bindings: Vec<Binding>,
+    bindings: Vec<Binding>,
 }
 
 impl Action {
@@ -202,7 +201,7 @@ impl Action {
 }
 
 pub struct InputMap<T> {
-    pub actions: HashMap<T, Action>,
+    actions: HashMap<T, Action>,
     pressed_buttons: HashMap<GamepadButtonType, f32>,
     gamepad_axis: HashMap<GamepadAxisDirection, f32>,
     raw_active: Vec<(T, Binding, f32)>,
@@ -211,7 +210,6 @@ pub struct InputMap<T> {
     just_inactive: HashSet<T>,
     gamepads: HashSet<Gamepad>,
     wants_clear: bool,
-    text: &'static str
 }
 
 impl<T> Default for InputMap<T> {
@@ -226,7 +224,6 @@ impl<T> Default for InputMap<T> {
             just_inactive: HashSet::new(),
             gamepads: HashSet::new(),
             wants_clear: false,
-            text: "",
         }
     }
 }
@@ -251,19 +248,6 @@ where
         self
     }
 
-
-    pub fn bind_with_text<K: Into<T>, B: Into<Binding>>(&mut self, action: K, binding: B, text: &'static str) -> &mut Self {
-        let key = action.into();
-        if !self.actions.contains_key(&key) {
-            self.add_action(key.clone());
-        }
-        if let Some(actions) = self.actions.get_mut(&key) {
-            actions.bindings.push(binding.into());
-        }
-        self.text = text;
-        self
-    }
-
     pub fn bind_with_deadzone<K: Into<T>, B: Into<Binding>>(
         &mut self,
         key: K,
@@ -280,10 +264,6 @@ where
             actions.bindings.push(binding);
         }
         self
-    }
-
-    pub fn text(&self) -> &'static str {
-        self.text
     }
 
     pub fn active<K: Into<T>>(&self, key: K) -> bool {
