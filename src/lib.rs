@@ -568,7 +568,7 @@ where
     T: Hash + Eq + Clone + Send + Sync,
     'a: 'static,
 {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.init_resource::<InputMap<T>>()
             .add_system_to_stage(CoreStage::PreUpdate, InputMap::<T>::key_input.system())
             .add_system_to_stage(CoreStage::PreUpdate, InputMap::<T>::mouse_button_input.system())
