@@ -554,9 +554,9 @@ where
 
 #[derive(Clone)]
 pub struct ActionGroupData {
-    name: String,
+    pub name: String,
     #[allow(dead_code)]
-    order: usize,
+    pub order: usize,
 }
 
 #[derive(Default)]
