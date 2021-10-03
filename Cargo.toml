@@ -9,6 +9,7 @@ edition = "2018"
 
 [dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
+pretty-type-name = "1.0"
 
 [dev-dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false, features = ["bevy_winit", "x11"] }

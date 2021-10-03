@@ -1,13 +1,10 @@
-use std::{
-    cmp::max,
-    collections::{HashMap, HashSet},
-    hash::Hash,
-};
+use std::{any::TypeId, cmp::max, collections::{HashMap, HashSet, hash_map::{Iter, IterMut}}, hash::Hash, marker::PhantomData};
 
 use bevy::{
     input::gamepad::{GamepadAxisType, GamepadEvent, GamepadEventType},
     prelude::*,
 };
+use pretty_type_name::pretty_type_name_str;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Binding {
@@ -554,11 +551,53 @@ where
     }
 }
 
-pub struct ActionPlugin<'a, T>(std::marker::PhantomData<&'a T>);
+
+#[derive(Clone)]
+pub struct ActionGroupData {
+    name: String,
+    order: usize,
+}
+
+#[derive(Default)]
+pub struct ActionGroups(bevy::utils::HashMap<TypeId, ActionGroupData>);
+impl ActionGroups {
+    fn insert<T: 'static>(&mut self, name: String, order: usize) {
+        self.0.insert(TypeId::of::<T>(), ActionGroupData {
+            name,
+            order,
+        });
+    }
+    fn contains_id(&self, type_id: TypeId) -> bool {
+        self.0.iter().any(|(&id, _)| id == type_id)
+    }
+    fn contains_name(&self, name: &str) -> bool {
+        self.0.iter().any(|(_, data)| data.name == name)
+    }
+    #[allow(dead_code)]
+    /// Returns the HashMap
+    pub fn iter(&self) -> Iter<TypeId, ActionGroupData> {
+        self.0.iter()
+    }
+
+    #[allow(dead_code)]
+    /// Returns the HashMap
+    pub fn iter_mut(&mut self) -> IterMut<'_, TypeId, ActionGroupData> {
+        self.0.iter_mut()
+    }
+}
+pub struct ActionPlugin<'a, T> {
+    marker: PhantomData<&'a T>,
+    initial_name: String,
+    initial_order: usize,
+}
 
 impl<'a, T> Default for ActionPlugin<'a, T> {
     fn default() -> Self {
-        Self(std::marker::PhantomData)
+        Self {
+            marker: PhantomData,
+            initial_name: "Unknown".to_owned(),
+            initial_order: 0,
+        }
     }
 }
 
@@ -569,25 +608,48 @@ where
     'a: 'static,
 {
     fn build(&self, app: &mut App) {
+
         app.init_resource::<InputMap<T>>()
-            .add_system_to_stage(CoreStage::PreUpdate, InputMap::<T>::key_input.system())
-            .add_system_to_stage(CoreStage::PreUpdate, InputMap::<T>::mouse_button_input.system())
-            .add_system_to_stage(CoreStage::PreUpdate, InputMap::<T>::gamepad_state.system())
-            .add_system_to_stage(
-                CoreStage::PreUpdate,
-                InputMap::<T>::gamepad_button_input.system(),
-            )
-            .add_system_to_stage(
-                CoreStage::PreUpdate,
-                InputMap::<T>::gamepad_axis_input.system(),
-            )
-            .add_system_to_stage(
-                CoreStage::PreUpdate,
-                InputMap::<T>::resolve_conflicts.system(),
-            )
-            .add_system_to_stage(
-                CoreStage::PostUpdate,
-                InputMap::<T>::clear_wants_clear.system(),
+        .add_system_to_stage(CoreStage::PreUpdate, InputMap::<T>::key_input.system())
+        .add_system_to_stage(CoreStage::PreUpdate, InputMap::<T>::mouse_button_input.system())
+        .add_system_to_stage(CoreStage::PreUpdate, InputMap::<T>::gamepad_state.system())
+        .add_system_to_stage(
+            CoreStage::PreUpdate,
+            InputMap::<T>::gamepad_button_input.system(),
+        )
+        .add_system_to_stage(
+            CoreStage::PreUpdate,
+            InputMap::<T>::gamepad_axis_input.system(),
+        )
+        .add_system_to_stage(
+            CoreStage::PreUpdate,
+            InputMap::<T>::resolve_conflicts.system(),
+        )
+        .add_system_to_stage(
+            CoreStage::PostUpdate,
+            InputMap::<T>::clear_wants_clear.system(),
+        );
+
+        let world = &mut app.world;
+
+        // add entry to `ActionGroups`
+        let mut action_groups = world.get_resource_or_insert_with(ActionGroups::default);
+        let type_id = TypeId::of::<T>();
+        let full_type_name = std::any::type_name::<T>();
+
+        if action_groups.contains_id(type_id) {
+            panic!(
+                "ActionGroups for {} is already registered",
+                full_type_name,
             );
+        }
+
+        let type_name: String = pretty_type_name_str(full_type_name);
+        if action_groups.contains_name(&type_name) {
+            if action_groups.contains_name(full_type_name) {
+                panic!("two types with different type_id but same type_name");
+            }
+        }
+        action_groups.insert::<T>(self.initial_name.clone(), self.initial_order);
     }
 }
