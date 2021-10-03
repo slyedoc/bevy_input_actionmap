@@ -555,6 +555,7 @@ where
 #[derive(Clone)]
 pub struct ActionGroupData {
     name: String,
+    #[allow(dead_code)]
     order: usize,
 }
 
@@ -573,6 +574,36 @@ impl ActionGroups {
     fn contains_name(&self, name: &str) -> bool {
         self.0.iter().any(|(_, data)| data.name == name)
     }
+
+
+
+    /// Returns the [InspectorWindowData] for the type `T`.
+    #[track_caller]
+    pub fn data<T: 'static>(&self) -> &ActionGroupData {
+        self.0
+            .get(&TypeId::of::<T>())
+            .ok_or_else(|| {
+                format!(
+                    "inspector window `{}` not initialized",
+                    std::any::type_name::<T>()
+                )
+            })
+            .unwrap()
+    }
+
+    pub fn data_mut<T: 'static>(&mut self) -> &mut ActionGroupData {
+        self.0
+            .get_mut(&TypeId::of::<T>())
+            .ok_or_else(|| {
+                format!(
+                    "inspector window `{}` not initialized",
+                    std::any::type_name::<T>()
+                )
+            })
+            .unwrap()
+    }
+
+
     #[allow(dead_code)]
     /// Returns the HashMap
     pub fn iter(&self) -> Iter<TypeId, ActionGroupData> {
@@ -585,6 +616,7 @@ impl ActionGroups {
         self.0.iter_mut()
     }
 }
+
 pub struct ActionPlugin<'a, T> {
     marker: PhantomData<&'a T>,
     initial_name: String,
@@ -610,30 +642,31 @@ where
     fn build(&self, app: &mut App) {
 
         app.init_resource::<InputMap<T>>()
-        .add_system_to_stage(CoreStage::PreUpdate, InputMap::<T>::key_input.system())
-        .add_system_to_stage(CoreStage::PreUpdate, InputMap::<T>::mouse_button_input.system())
-        .add_system_to_stage(CoreStage::PreUpdate, InputMap::<T>::gamepad_state.system())
+        .add_system_to_stage(CoreStage::PreUpdate, InputMap::<T>::key_input)
+        .add_system_to_stage(CoreStage::PreUpdate, InputMap::<T>::mouse_button_input)
+        .add_system_to_stage(CoreStage::PreUpdate, InputMap::<T>::gamepad_state)
         .add_system_to_stage(
             CoreStage::PreUpdate,
-            InputMap::<T>::gamepad_button_input.system(),
+            InputMap::<T>::gamepad_button_input,
         )
         .add_system_to_stage(
             CoreStage::PreUpdate,
-            InputMap::<T>::gamepad_axis_input.system(),
+            InputMap::<T>::gamepad_axis_input,
         )
         .add_system_to_stage(
             CoreStage::PreUpdate,
-            InputMap::<T>::resolve_conflicts.system(),
+            InputMap::<T>::resolve_conflicts,
         )
         .add_system_to_stage(
             CoreStage::PostUpdate,
-            InputMap::<T>::clear_wants_clear.system(),
+            InputMap::<T>::clear_wants_clear,
         );
 
         let world = &mut app.world;
 
         // add entry to `ActionGroups`
         let mut action_groups = world.get_resource_or_insert_with(ActionGroups::default);
+
         let type_id = TypeId::of::<T>();
         let full_type_name = std::any::type_name::<T>();
 
