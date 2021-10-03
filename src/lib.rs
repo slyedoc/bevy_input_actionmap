@@ -164,7 +164,7 @@ impl Action {
         let mut bindings = self
             .bindings
             .iter()
-            .filter(|it| it.key_pressed(&input))
+            .filter(|it| it.key_pressed(input))
             .cloned()
             .collect::<Vec<Binding>>();
         bindings.sort_by(|v1, v2| (v1.weight().partial_cmp(&v2.weight()).unwrap()));
@@ -175,7 +175,7 @@ impl Action {
         let mut bindings = self
             .bindings
             .iter()
-            .filter(|it| it.mouse_button_pressed(&input))
+            .filter(|it| it.mouse_button_pressed(input))
             .cloned()
             .collect::<Vec<Binding>>();
         bindings.sort_by(|v1, v2| (v1.weight().partial_cmp(&v2.weight()).unwrap()));
@@ -675,13 +675,13 @@ where
                 "ActionGroups for {} is already registered",
                 full_type_name,
             );
+        } else {
+
         }
 
         let type_name: String = pretty_type_name_str(full_type_name);
-        if action_groups.contains_name(&type_name) {
-            if action_groups.contains_name(full_type_name) {
-                panic!("two types with different type_id but same type_name");
-            }
+        if action_groups.contains_name(&type_name) && action_groups.contains_name(full_type_name) {
+            error!("two types with different type_id but same type_name");
         }
         action_groups.insert::<T>(self.initial_name.clone(), self.initial_order);
     }

@@ -3,13 +3,13 @@ name = "bevy_input_actionmap"
 version = "0.1.0"
 authors = ["Nolan Darilek <nolan@thewordnerd.info>"]
 license = "mit"
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false }
+bevy = { git = "https://github.com/bevyengine/bevy", branch = "main" }
 pretty-type-name = "1.0"
 
 [dev-dependencies]
-bevy = { git = "https://github.com/bevyengine/bevy", branch = "main", default-features = false, features = ["bevy_winit", "x11"] }
+bevy = { git = "https://github.com/bevyengine/bevy", branch = "main" }
